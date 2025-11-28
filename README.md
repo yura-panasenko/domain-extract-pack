@@ -257,8 +257,24 @@ Learn more at [publicsuffix.org](https://publicsuffix.org/)
 
 ## License
 
-ISC
+MIT License - see [LICENSE](LICENSE) file for details.
+
+**Key protections:**
+- Free to use, modify, and distribute
+- No warranty or liability
+- Must include copyright notice in copies
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## Support
 
-For issues or questions, please refer to the Coda Pack documentation or contact support through the Coda platform.
+For issues or questions:
+- **Bug reports**: Open an issue on [GitHub](https://github.com/yura-panasenko/domain-extract-pack/issues)
+- **Feature requests**: Submit via GitHub issues
+- **Pack usage**: Refer to the Coda Pack documentation
+
+## Disclaimer
+
+This Pack is provided "as is" without warranty of any kind. While we use the authoritative Public Suffix List for accuracy, results should be verified for critical business decisions. See the [LICENSE](LICENSE) file for full legal terms.
