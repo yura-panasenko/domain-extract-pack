@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+*.js
+*.js.map
+dist/
+build/
+
+# Environment files
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Coda Pack specific
+.coda.json
+.coda-credentials.json
+.coda-pack.json
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Documentation source (optional - can be removed if you want to keep)
+Docs/

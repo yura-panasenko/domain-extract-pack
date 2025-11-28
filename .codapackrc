@@ -1,0 +1,8 @@
+{
+  "packId": "",
+  "description": "Extract registered domains from email addresses using the Public Suffix List - the same standard used by browsers worldwide",
+  "shortDescription": "Accurate domain extraction using the Public Suffix List",
+  "name": "Domain Extraction",
+  "category": "Data & Analytics",
+  "version": "1.0.0"
+}
