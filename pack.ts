@@ -1,10 +1,33 @@
 import * as coda from "@codahq/packs-sdk";
-import * as psl from "psl";
+import { parse } from "tldts";
 
 export const pack = coda.newPack();
 
 // Pack metadata
 pack.addNetworkDomain("publicsuffix.org");
+
+// Helper function to extract and normalize hostname
+function extractHostname(emailOrHostname: string): string {
+  let hostname = emailOrHostname.trim();
+
+  // Extract hostname from email if @ symbol is present
+  if (hostname.includes("@")) {
+    const parts = hostname.split("@");
+    hostname = parts[parts.length - 1];
+  }
+
+  // Remove protocol if present
+  hostname = hostname.replace(/^https?:\/\//, "");
+
+  // Remove path, query string, or fragment if present
+  hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
+
+  // Remove port if present
+  hostname = hostname.split(":")[0];
+
+  // Convert to lowercase for consistency
+  return hostname.toLowerCase().trim();
+}
 
 // Main formula: Extract registered domain from email or hostname
 pack.addFormula({
@@ -25,40 +48,23 @@ pack.addFormula({
     { params: ["user@mail.business.com.au"], result: "business.com.au" },
     { params: ["admin@shop.example.com"], result: "example.com" },
   ],
+  cacheTtlSecs: 3600, // Cache results for 1 hour
   execute: async function ([emailOrHostname]) {
     if (!emailOrHostname) {
       throw new coda.UserVisibleError("Email or hostname is required");
     }
 
-    // Extract hostname from email if @ symbol is present
-    let hostname = emailOrHostname.trim();
-    if (hostname.includes("@")) {
-      // Take the part after the last @ symbol
-      const parts = hostname.split("@");
-      hostname = parts[parts.length - 1];
-    }
-
-    // Remove protocol if present
-    hostname = hostname.replace(/^https?:\/\//, "");
-
-    // Remove path, query string, or fragment if present
-    hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
-
-    // Remove port if present
-    hostname = hostname.split(":")[0];
-
-    // Convert to lowercase for consistency
-    hostname = hostname.toLowerCase().trim();
+    const hostname = extractHostname(emailOrHostname);
 
     if (!hostname) {
       throw new coda.UserVisibleError("Could not extract valid hostname from input");
     }
 
-    // Use the PSL library to parse the domain
-    const parsed = psl.parse(hostname) as any;
+    // Use tldts to parse the domain (much faster than psl)
+    const parsed = parse(hostname);
 
-    if (parsed.error) {
-      throw new coda.UserVisibleError(`Invalid domain: ${parsed.error.message}`);
+    if (!parsed.isIcann && !parsed.isPrivate) {
+      throw new coda.UserVisibleError(`Invalid domain: ${hostname}`);
     }
 
     // Return the registered domain (domain property includes eTLD+1)
@@ -113,49 +119,32 @@ pack.addFormula({
       },
     },
   ],
+  cacheTtlSecs: 3600, // Cache results for 1 hour
   execute: async function ([emailOrHostname]) {
     if (!emailOrHostname) {
       throw new coda.UserVisibleError("Email or hostname is required");
     }
 
     const input = emailOrHostname.trim();
-
-    // Extract hostname from email if @ symbol is present
-    let hostname = input;
-    if (hostname.includes("@")) {
-      const parts = hostname.split("@");
-      hostname = parts[parts.length - 1];
-    }
-
-    // Remove protocol if present
-    hostname = hostname.replace(/^https?:\/\//, "");
-
-    // Remove path, query string, or fragment if present
-    hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
-
-    // Remove port if present
-    hostname = hostname.split(":")[0];
-
-    // Convert to lowercase for consistency
-    hostname = hostname.toLowerCase().trim();
+    const hostname = extractHostname(emailOrHostname);
 
     if (!hostname) {
       throw new coda.UserVisibleError("Could not extract valid hostname from input");
     }
 
-    // Use the PSL library to parse the domain
-    const parsed = psl.parse(hostname) as any;
+    // Use tldts to parse the domain
+    const parsed = parse(hostname);
 
     return {
       input: input,
       hostname: hostname,
       registeredDomain: parsed.domain || "",
       subdomain: parsed.subdomain || "",
-      publicSuffix: parsed.tld || "",
-      topLevelDomain: parsed.sld ? parsed.tld?.split(".").pop() || "" : parsed.tld || "",
-      domainWithoutSuffix: parsed.sld || "",
-      isValid: !parsed.error,
-      isICANN: parsed.listed || false,
+      publicSuffix: parsed.publicSuffix || "",
+      topLevelDomain: parsed.publicSuffix?.split(".").pop() || "",
+      domainWithoutSuffix: parsed.domainWithoutSuffix || "",
+      isValid: parsed.isIcann || parsed.isPrivate,
+      isICANN: parsed.isIcann || false,
     };
   },
 });
@@ -177,40 +166,24 @@ pack.addFormula({
     { params: ["invalid..domain"], result: false },
     { params: ["test@localhost"], result: false },
   ],
+  cacheTtlSecs: 3600, // Cache results for 1 hour
   execute: async function ([emailOrHostname]) {
     if (!emailOrHostname) {
       return false;
     }
 
     try {
-      // Extract hostname from email if @ symbol is present
-      let hostname = emailOrHostname.trim();
-      if (hostname.includes("@")) {
-        const parts = hostname.split("@");
-        hostname = parts[parts.length - 1];
-      }
-
-      // Remove protocol if present
-      hostname = hostname.replace(/^https?:\/\//, "");
-
-      // Remove path, query string, or fragment if present
-      hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
-
-      // Remove port if present
-      hostname = hostname.split(":")[0];
-
-      // Convert to lowercase for consistency
-      hostname = hostname.toLowerCase().trim();
+      const hostname = extractHostname(emailOrHostname);
 
       if (!hostname) {
         return false;
       }
 
-      // Use the PSL library to parse the domain
-      const parsed = psl.parse(hostname) as any;
+      // Use tldts to parse the domain
+      const parsed = parse(hostname);
 
-      // A valid domain should have no errors and should have a domain property
-      return !parsed.error && !!parsed.domain;
+      // A valid domain should have a domain property and be either ICANN or private
+      return (parsed.isIcann || parsed.isPrivate) && !!parsed.domain;
     } catch (error) {
       return false;
     }
@@ -243,6 +216,7 @@ pack.addFormula({
       result: ["acmecompany.com", "techcorp.co.uk"],
     },
   ],
+  cacheTtlSecs: 3600, // Cache results for 1 hour
   execute: async function ([emailsOrHostnames, uniqueOnly = true]) {
     if (!emailsOrHostnames || emailsOrHostnames.length === 0) {
       return [];
@@ -254,31 +228,14 @@ pack.addFormula({
       if (!item) continue;
 
       try {
-        // Extract hostname from email if @ symbol is present
-        let hostname = item.trim();
-        if (hostname.includes("@")) {
-          const parts = hostname.split("@");
-          hostname = parts[parts.length - 1];
-        }
-
-        // Remove protocol if present
-        hostname = hostname.replace(/^https?:\/\//, "");
-
-        // Remove path, query string, or fragment if present
-        hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
-
-        // Remove port if present
-        hostname = hostname.split(":")[0];
-
-        // Convert to lowercase for consistency
-        hostname = hostname.toLowerCase().trim();
+        const hostname = extractHostname(item);
 
         if (!hostname) continue;
 
-        // Use the PSL library to parse the domain
-        const parsed = psl.parse(hostname) as any;
+        // Use tldts to parse the domain
+        const parsed = parse(hostname);
 
-        if (!parsed.error && parsed.domain) {
+        if ((parsed.isIcann || parsed.isPrivate) && parsed.domain) {
           domains.push(parsed.domain);
         }
       } catch (error) {
@@ -314,45 +271,29 @@ pack.addFormula({
     { params: ["support@techcorp.co.uk"], result: "co.uk" },
     { params: ["admin@business.com.au"], result: "com.au" },
   ],
+  cacheTtlSecs: 3600, // Cache results for 1 hour
   execute: async function ([emailOrHostname]) {
     if (!emailOrHostname) {
       throw new coda.UserVisibleError("Email or hostname is required");
     }
 
-    // Extract hostname from email if @ symbol is present
-    let hostname = emailOrHostname.trim();
-    if (hostname.includes("@")) {
-      const parts = hostname.split("@");
-      hostname = parts[parts.length - 1];
-    }
-
-    // Remove protocol if present
-    hostname = hostname.replace(/^https?:\/\//, "");
-
-    // Remove path, query string, or fragment if present
-    hostname = hostname.split("/")[0].split("?")[0].split("#")[0];
-
-    // Remove port if present
-    hostname = hostname.split(":")[0];
-
-    // Convert to lowercase for consistency
-    hostname = hostname.toLowerCase().trim();
+    const hostname = extractHostname(emailOrHostname);
 
     if (!hostname) {
       throw new coda.UserVisibleError("Could not extract valid hostname from input");
     }
 
-    // Use the PSL library to parse the domain
-    const parsed = psl.parse(hostname) as any;
+    // Use tldts to parse the domain
+    const parsed = parse(hostname);
 
-    if (parsed.error) {
-      throw new coda.UserVisibleError(`Invalid domain: ${parsed.error.message}`);
+    if (!parsed.isIcann && !parsed.isPrivate) {
+      throw new coda.UserVisibleError(`Invalid domain: ${hostname}`);
     }
 
-    if (!parsed.tld) {
+    if (!parsed.publicSuffix) {
       throw new coda.UserVisibleError(`Could not determine public suffix for: ${hostname}`);
     }
 
-    return parsed.tld;
+    return parsed.publicSuffix;
   },
 });
