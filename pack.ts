@@ -29,6 +29,23 @@ function extractHostname(emailOrHostname: string): string {
   return hostname.toLowerCase().trim();
 }
 
+// Fast-path optimization: extract simple domains without PSL lookup
+// Returns the domain for simple cases (e.g., "example.com"), or null if PSL is needed
+function trySimpleDomain(hostname: string): string | null {
+  // Count dots in the hostname
+  const dotCount = (hostname.match(/\./g) || []).length;
+
+  // If exactly 1 dot, it's a simple domain.tld (e.g., "example.com")
+  // No PSL lookup needed - just return the whole hostname
+  if (dotCount === 1) {
+    return hostname;
+  }
+
+  // If 2+ dots, might be subdomain.example.com or example.co.uk
+  // Need PSL to determine which
+  return null;
+}
+
 // Main formula: Extract registered domain from email or hostname
 pack.addFormula({
   name: "GetRegisteredDomain",
@@ -60,7 +77,13 @@ pack.addFormula({
       throw new coda.UserVisibleError("Could not extract valid hostname from input");
     }
 
-    // Use tldts to parse the domain (much faster than psl)
+    // Fast path: try simple domain extraction first (avoids PSL lookup)
+    const simpleDomain = trySimpleDomain(hostname);
+    if (simpleDomain) {
+      return simpleDomain;
+    }
+
+    // Complex case: use tldts for PSL lookup (handles subdomains, multi-part TLDs)
     const parsed = parse(hostname);
 
     if (!parsed.isIcann && !parsed.isPrivate) {
@@ -232,7 +255,14 @@ pack.addFormula({
 
         if (!hostname) continue;
 
-        // Use tldts to parse the domain
+        // Fast path: try simple domain extraction first
+        const simpleDomain = trySimpleDomain(hostname);
+        if (simpleDomain) {
+          domains.push(simpleDomain);
+          continue;
+        }
+
+        // Complex case: use tldts for PSL lookup
         const parsed = parse(hostname);
 
         if ((parsed.isIcann || parsed.isPrivate) && parsed.domain) {
