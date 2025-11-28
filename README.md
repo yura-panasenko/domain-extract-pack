@@ -16,6 +16,7 @@ This Pack solves these problems by using the Public Suffix List, which correctly
 - ✅ Wildcard rules and exception rules
 - ✅ Arbitrary subdomains
 - ✅ Browser-grade accuracy
+- ✅ Optimized for performance with intelligent caching
 
 ## Use Cases
 
@@ -215,10 +216,11 @@ npx coda upload pack.ts
 
 ## Technical Details
 
-- **Public Suffix List**: Uses the `psl` npm package which implements the Mozilla Public Suffix List
+- **Public Suffix List**: Uses the `tldts` npm package - an optimized implementation of the Mozilla Public Suffix List
+- **Performance**: Intelligent caching with 1-hour TTL for fast repeated lookups
 - **Standards Compliant**: Follows the same rules used by web browsers for domain parsing
 - **No Authentication Required**: All formulas work without any API keys or authentication
-- **Efficient**: Lightweight with minimal dependencies
+- **Efficient**: Lightweight with minimal dependencies and optimized data structures
 
 ## About the Public Suffix List
 
