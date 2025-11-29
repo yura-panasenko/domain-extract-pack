@@ -255,14 +255,18 @@ The Public Suffix List is a cross-vendor initiative maintained by Mozilla to pro
 
 Learn more at [publicsuffix.org](https://publicsuffix.org/)
 
-## License
+## License & Legal
 
-MIT License - see [LICENSE](LICENSE) file for details.
+**MIT License** - see [LICENSE](LICENSE) file for details.
 
 **Key protections:**
 - Free to use, modify, and distribute
 - No warranty or liability
 - Must include copyright notice in copies
+
+**Additional Information:**
+- [Terms of Service](TERMS_OF_SERVICE.md) - Usage terms and disclaimers
+- [Privacy Policy](PRIVACY_POLICY.md) - Data handling practices (we don't collect any data)
 
 ## Contributing
 
